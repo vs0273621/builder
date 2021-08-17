@@ -1,0 +1,753 @@
+<apex:page id="ASOQLBuilder" controller="ASOQLBuilder" action="{! init}">
+
+    <apex:form >
+        <apex:actionFunction action="{! showFields}" name="showFields" reRender="fieldContent, sortingContent">
+            <apex:param name="objectName" value=""/>
+        </apex:actionFunction>
+
+        <apex:actionFunction action="{! hideFields}" name="hideFields" reRender="fieldContent, sortingContent"/>
+    </apex:form>
+
+    <apex:slds />
+    <div class="slds-scope">
+        <header class="slds-builder-header">
+            <div class="slds-builder-header__item">
+                <div class="slds-builder-header__item-label slds-media slds-media_center">
+                    <div class="slds-media__body">SOQL BUILDER</div>
+                </div>
+            </div>
+        </header>
+        <div style="padding: 1%;  width: 100%; height: 100%; overflow: auto;">
+            <div id="builderContainer" class="builderShow">
+                <div class="content">
+                    <!--Builder Section-->
+                    <div class="slds-grid slds-gutters slds-wrap">
+                        <div class="slds-col slds-size_1-of-3">
+                            <div class="slds-grid  slds-grid_vertical">
+                                <div class="slds-col slds-size_1-of-3">
+                                    <h2 class="slds-expression__title">Object</h2>
+                                    <!-- SELECT OBJECT -->
+                                    <div class="slds-form-element">
+                                        <label class="slds-form-element__label" for="selectObject">
+                                            Select object:
+                                        </label>
+                                        <div class="slds-form-element__control">
+                                            <div class="slds-select_container">
+                                                <select class="slds-select" id="selectObject"
+                                                        onchange="onObjectSelect()"
+                                                >
+                                                    <option value=""></option>
+                                                    <apex:repeat value="{! sobjectNames}" var="sobjectName">
+                                                        <option value="{! sobjectName}">{! sobjectName}</option>
+                                                    </apex:repeat>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+                                <div class="slds-col slds-hide" id="fieldsBlock"><br/>
+                                    <h2 class="slds-expression__title " >Fields</h2>
+                                    <apex:form id="fieldContent">
+                                        <outputPanel>
+                                            <!-- SELECT FIELDS -->
+                                            <apex:selectList value="{! selectedValue}"
+                                                             multiselect="true"
+                                                             id="selectFields"
+                                                             rendered="{! isObjectSelected}"
+                                                             style="height: 200px; min-width: 175px"
+                                                             onchange="onFieldSelect('{! $Component.selectFields}')"
+                                            >
+                                                <apex:selectOptions value="{! objectFieldsOption}"/>
+                                            </apex:selectList>
+                                        </outputPanel>
+                                    </apex:form>
+
+                                </div>
+                            </div>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3">
+                            <div class="slds-grid  slds-grid_vertical">
+                                <div class="slds-col slds-hide" id="sortingBlock">
+                                    <h2 class="slds-expression__title"> Sorting</h2>
+
+                                    <div style="display: inline; width: 100%; height: 100%">
+                                        <div style="width: 30%; display: inline-block;">
+                                            <apex:form id="sortingContent">
+                                                <label class="slds-form-element__label" for="selectSortingField">
+                                                    Sorted result by:
+                                                </label>
+                                                <select class="slds-select" id="selectSortingField"
+                                                        onchange="onSortingFieldSelect()"
+                                                >
+                                                    <option value=""></option>
+                                                    <apex:repeat value="{! objectFields}" var="fieldName">
+                                                        <option value="{! fieldName}">{! fieldName}</option>
+                                                    </apex:repeat>
+                                                </select>
+                                            </apex:form>
+                                        </div>
+                                        <div style="width: 20%; display: inline-block; margin-left : 10px;">
+                                            <label class="slds-form-element__label" for="selectSortingDirection">
+                                                Sorting direction:
+                                            </label>
+                                            <select class="slds-select" id="selectSortingDirection"
+                                                    onchange="onSortingDirectionSelect()">
+                                                <option value="ASC">A - Z</option>
+                                                <option value="DESC">Z - A</option>
+                                            </select>
+                                        </div>
+                                        <div style="width: 20%; display: inline-block;  margin-left : 10px;">
+                                            <label class="slds-form-element__label" for="selectSortingNullPosition">
+                                                Where nulls:
+                                            </label>
+                                            <select class="slds-select" id="selectSortingNullPosition"
+                                                    onchange="onSortingNullPositionSelect()">
+                                                <option value="NULLS FIRST">Nulls First</option>
+                                                <option value="NULLS LAST">Nulls Last</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                </div>
+                                <div class="slds-col  slds-hide" id="limitBlock"><br/>
+                                    <h2 class="slds-expression__title">Limits</h2>
+                                    <div style="width: 30%;">
+                                        <div class="slds-form-element">
+                                            <label class="slds-form-element__label" for="inputLimit">
+                                                Max Records:
+                                            </label>
+                                            <div class="slds-form-element__control">
+                                                <input type="text"
+                                                       id="inputLimit"
+                                                       class="slds-input"
+                                                       oninput="onInputLimitChange()"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="slds-col slds-size_1-of-3 slds-hide" id="conditionBlock">
+                            <div class="slds-expression">
+                                <h2 class="slds-expression__title">Conditions</h2>
+                                <div id="conditionContainer"/>
+                                <div class="slds-expression__buttons">
+                                    <button class="slds-button slds-button_neutral" onclick="onAddCondition()">
+                                        Add Condition
+                                    </button>
+                                    <button class="slds-button slds-button_neutral" onclick="onDeleteCondition()">
+                                        Delete Condition
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <br/>
+
+                    <!-- RESULT SOQL GENERATION -->
+                    <div class="slds-form-element">
+                        <label class="slds-form-element__label" for="text-input-id-1">Result SOQL requests:</label>
+                        <div class="slds-form-element__control">
+                            <input type="text"
+                                   id="requestQuery"
+                                   readonly="true"
+                                   placeholder=""
+                                   class="slds-input"
+                                   style=" background-color: #ffe; color: #930;"
+                            />
+                        </div>
+                    </div>
+                    <br/>
+                    <button class="slds-button slds-button_neutral" onclick="onQuery()">Query</button>
+                    <div id="responseErrors" style="color: #993300;"/>
+                </div>
+            </div>
+            <br/>
+            <div style="width: 100%; align-content: center; ">
+                <button class="showHideBtn" onclick="onShowHideBuilder()">
+                    <div id="showHideButtonContent" style="color: #FFFFFF">
+                        △
+                    </div>
+                </button>
+            </div>
+            <br/>
+            <!--Result Section-->
+            <div id="resultContainer"/>
+            <!--Result Section-->
+            <br/>
+            <div id="paginationBlock" class="slds-hide">
+                <button class="slds-button slds-button_neutral" id="paginationPrev" onclick="previous()">Previous</button>&nbsp; &nbsp; &nbsp;
+                <span style="font-size: 12pt" id="paginationInfo"/> &nbsp; &nbsp; &nbsp;
+                <button class="slds-button slds-button_neutral" id="paginationNext" onclick="next()">Next</button>
+            </div>
+            <br/> <br/>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+
+        var isShowAllLabel = false;
+        var selectedFieldsForQuery = [];
+        var selectedObjectForQuery = '';
+        var selectedFieldsForDataTable = [];
+        var resultSobject = [];
+        var sortFieldMap = new Map();
+        var startPage;
+        var endPage;
+        var totalRecords;
+        var pageSize = 20;
+        var pageNumber;
+        var totalPages;
+
+        function onSortingFieldSelect() {
+            buildQuery();
+        }
+
+        function onSortingDirectionSelect() {
+            buildQuery();
+        }
+
+        function onSortingNullPositionSelect() {
+            buildQuery();
+        }
+
+        function onDeleteCondition() {
+
+            let conditionContainer = document.getElementById('conditionContainer');
+            let lastCondition = conditionContainer.lastChild;
+
+            if (lastCondition) {
+                conditionContainer.removeChild(lastCondition);
+            }
+
+            buildQuery();
+
+        }
+
+        function onAddCondition() {
+
+            let conditionContainer = document.getElementById('conditionContainer');
+            let fields = document.getElementById('selectSortingField').innerHTML;
+            let condition = document.createElement('div');
+
+            condition.style.display = 'inline';
+            condition.style.width = '100%';
+            condition.style.height = '100%';
+            condition.dataset.id = 'condition';
+
+            condition.innerHTML =
+                `<div style="width: 30%; display: inline-block;">
+                        <select class="slds-select"
+                                data-id="condField"
+                                onchange="onConditionSelect()"
+                        >
+                           ${fields}
+                        </select>
+                    </div>
+
+                    <div style="width: 20%; display: inline-block; margin-left : 10px;">
+                        <select class="slds-select"
+                                data-id="condExpr"
+                                onchange="onConditionSelect()"
+                        >
+                            <option value="=">=</option>
+                            <option value="!=">≠</option>
+                            <option value="&lt;">&lt;</option>
+                            <option value="&lt;=">≤</option>
+                            <option value=">">></option>
+                            <option value=">=">≥</option>
+                            <option value="start">Starts with</option>
+                            <option value="end">Ends with</option>
+                            <option value="contains">Contains</option>
+                            <option value="IN">In</option>
+                            <option value="NOT IN">Not in</option>
+                            <option value="INCLUDES">Includes</option>
+                            <option value="EXCLUDES">Excludes</option>
+                        </select>
+                    </div>
+                    <div style="width: 20%; display: inline-block;  margin-left : 10px;">
+                        <input type="text" class="slds-input" data-id="condValue" oninput="onConditionSelect()"/>
+                    </div>`
+            ;
+            conditionContainer.appendChild(condition);
+
+        }
+
+        function onConditionSelect() {
+            buildQuery();
+        }
+
+        function onInputLimitChange() {
+            buildQuery();
+        }
+
+        function buildQuery() {
+
+            let requestQuery = document.getElementById('requestQuery');
+
+            if (selectedObjectForQuery !== '') {
+                if (selectedFieldsForQuery && selectedFieldsForQuery.length > 0) {
+                    let SELECT = "SELECT " + selectedFieldsForQuery.join(", ")
+                    let FROM = "FROM " + selectedObjectForQuery + " ";
+                    let WHERE = generateExpression();
+                    let ORDERBY = "";
+                    let sortingField = document.getElementById('selectSortingField').value;
+                    if (sortingField && sortingField !== "") {
+                        let sortingDirection = document.getElementById('selectSortingDirection').value;
+                        let sortingNullsPos = document.getElementById('selectSortingNullPosition').value;
+                        ORDERBY = "ORDER BY " + sortingField + " " + sortingDirection + " " + sortingNullsPos + " ";
+                    }
+                    let LIMIT = "";
+                    let limit = document.getElementById('inputLimit').value;
+                    if (limit && limit >= 1) {
+                        LIMIT = "LIMIT " + limit + " ";
+                    }
+                    requestQuery.value =  SELECT + " " + FROM + WHERE + ORDERBY + LIMIT;
+                } else {
+                    requestQuery.value = '';
+                }
+            } else {
+                requestQuery.value = '';
+            }
+        }
+
+        function generateExpression () {
+            let WHERE = "";
+            let conditions = document.getElementById('conditionContainer').children;
+            let exprCount = 0;
+
+            for(let condition of conditions) {
+
+                let field = condition.querySelector('*[data-id="condField"]').value;
+                let operator = condition.querySelector('*[data-id="condExpr"]').value;
+                let value = condition.querySelector('*[data-id="condValue"]').value;
+                let fieldType = '';
+
+                if (field && field !== '' && value && value !== '') {
+                    if (exprCount == 0) {
+                        WHERE = "WHERE "
+                    } else {
+                        WHERE += " AND "
+                    }
+                    if (operator === "start") {
+                        operator = "LIKE"
+                        value = value + "%";
+                    } else if (operator === "end") {
+                        operator = "LIKE"
+                        value = "%" + value;
+                    } else if (operator === "contains") {
+                        operator = "LIKE"
+                        value = "%" + value + "%";
+                    }
+                    if (operator === "IN" ||
+                        operator === "NOT IN" ||
+                        operator === "INCLUDES" ||
+                        operator === "EXCLUDES") {
+                        result = field + " " + operator + " " + "(" + value + ")";
+                    } else if ((value === 'null') ||
+                        (fieldType === "DATETIME") ||
+                        (fieldType === "DATE") ||
+                        (fieldType === "CURRENCY") ||
+                        (fieldType === "PERCENT") ||
+                        (fieldType === "DOUBLE") ||
+                        (fieldType === "INTEGER") ||
+                        (fieldType === "BOOLEAN")) {
+                        WHERE += field + " " + operator + " " + value;
+                    } else {
+                        WHERE += field + " " + operator + " " + "\'" + value + "\'";
+                    }
+                    exprCount++;
+                } else {
+                    continue;
+                }
+            }
+            return WHERE;
+        }
+
+        function onQuery() {
+            let query = document.getElementById('requestQuery').value;
+            let builder = document.getElementById('builderContainer');
+
+            Visualforce.remoting.Manager.invokeAction(
+                '{!$RemoteAction.ASOQLBuilder.getData}',
+                query,
+                function(result, event){
+                    if (event.status) {
+                        resultSobject = result;
+                        selectedFieldsForDataTable = selectedFieldsForQuery;
+                        paginationInit()
+                        showPagination();
+                        hideBuilder(builder);
+                        document.getElementById("responseErrors").innerHTML = '';
+                        sortFieldMap.clear();
+                    } else {
+                        sortFieldMap.clear();
+                        hidePagination();
+                        resultSobject = [];
+                        selectedFieldsForDataTable = [];
+                        clearResult();
+                        document.getElementById("responseErrors").innerHTML = event.message;
+                    }
+                },
+                {escape: true}
+            );
+        }
+
+        function onFieldSelect(elementId) {
+
+            let selectedFields = [...document.getElementById(elementId).options]
+                .filter(option => option.selected)
+                .map(option => option.value);
+            selectedFieldsForQuery = selectedFields;
+
+            if (selectedFields.length > 0) {
+                if (!isShowAllLabel) {
+                    showAllLabelContent();
+                }
+            } else {
+                //FIELDS NOT SELECTED
+                hideAllLabelContent();
+            }
+
+            buildQuery();
+
+        }
+
+        function onObjectSelect() {
+
+            let selectObject = document.getElementById('selectObject');
+            let selectObjectValue = selectObject.options[selectObject.selectedIndex].value;
+            selectedObjectForQuery = selectObjectValue;
+
+            hideAllLabelContent();
+
+            if (selectObjectValue !== '') {
+                showFieldsLabel();
+                showFields(selectObjectValue);
+            } else {
+                hideFieldsLabel();
+                hideFields();
+            }
+
+            buildQuery();
+
+        }
+
+        function showAllLabelContent() {
+
+            let conditionBlock = document.getElementById('conditionBlock');
+            let sortingBlock = document.getElementById('sortingBlock');
+            let limitBlock = document.getElementById('limitBlock');
+            isShowAllLabel = true;
+
+            conditionBlock.classList.remove('slds-hide');
+            conditionBlock.classList.add('slds-show')
+            sortingBlock.classList.remove('slds-hide');
+            sortingBlock.classList.add('slds-show')
+            limitBlock.classList.remove('slds-hide');
+            limitBlock.classList.add('slds-show')
+
+        }
+
+        function hideAllLabelContent() {
+
+            let conditionBlock = document.getElementById('conditionBlock');
+            let sortingBlock = document.getElementById('sortingBlock');
+            let limitBlock = document.getElementById('limitBlock');
+            isShowAllLabel = false;
+
+            conditionBlock.classList.remove('slds-show');
+            conditionBlock.classList.add('slds-hide')
+            sortingBlock.classList.remove('slds-show');
+            sortingBlock.classList.add('slds-hide')
+            limitBlock.classList.remove('slds-show');
+            limitBlock.classList.add('slds-hide')
+
+            document.getElementById('requestQuery').value = '';
+            selectedFieldsForQuery = [];
+
+            clearAllCondition();
+            clearLimits();
+            clearSorting();
+
+        }
+
+        function clearSorting() {
+            document.getElementById('selectSortingField').value = '' ;
+            document.getElementById('selectSortingDirection').value = 'ASC';
+            document.getElementById('selectSortingNullPosition').value = 'NULLS FIRST';
+        }
+
+        function clearLimits() {
+            let limit = document.getElementById('inputLimit');
+            limit.value = '';
+        }
+
+        function clearAllCondition() {
+            let conditionContainer = document.getElementById('conditionContainer');
+            conditionContainer.innerHTML = '';
+        }
+
+        function showFieldsLabel() {
+            let fieldsBlock = document.getElementById('fieldsBlock');
+            fieldsBlock.classList.remove('slds-hide');
+            fieldsBlock.classList.add('slds-show')
+        }
+
+        function hideFieldsLabel() {
+            let fieldsBlock = document.getElementById('fieldsBlock');
+            fieldsBlock.classList.remove('slds-show');
+            fieldsBlock.classList.add('slds-hide')
+        }
+
+        function showPagination() {
+            let paginationBlock = document.getElementById('paginationBlock');
+            paginationBlock.classList.remove('slds-hide');
+            paginationBlock.classList.add('slds-show')
+        }
+
+        function hidePagination() {
+            let paginationBlock = document.getElementById('paginationBlock');
+            paginationBlock.classList.remove('slds-show');
+            paginationBlock.classList.add('slds-hide')
+        }
+
+        function onShowHideBuilder() {
+            let builder = document.getElementById('builderContainer');
+            if (builder.classList.contains('builderShow')) {
+                hideBuilder(builder);
+            } else {
+                showBuilder(builder);
+            }
+        }
+
+        function showBuilder(builder) {
+            let buttonContent = document.getElementById('showHideButtonContent');
+            buttonContent.innerHTML = '△';
+            builder.classList.remove('builderHide');
+            builder.classList.add('builderShow');
+        }
+
+        function hideBuilder(builder) {
+            let buttonContent = document.getElementById('showHideButtonContent');
+            buttonContent.innerHTML = '▽';
+            builder.classList.remove('builderShow');
+            builder.classList.add('builderHide');
+        }
+
+        function init() {
+
+        }
+
+        function sortTableBy(sortBy) {
+            if (sortFieldMap.has(sortBy))  {
+                if (sortFieldMap.get(sortBy) == 0) {
+                    sortTableByFieldDesc(resultSobject, sortBy)
+                    sortFieldMap.set(sortBy, 1);
+                } else {
+                    sortTableByFieldAsc(resultSobject, sortBy)
+                    sortFieldMap.set(sortBy, 0);
+                }
+            } else {
+                sortTableByFieldAsc(resultSobject, sortBy)
+                sortFieldMap.set(sortBy, 0);
+            }
+            paginationInit();
+        }
+
+        function sortTableByFieldAsc (array, sortBy) {
+            array.sort( (objA, objB) => {
+                let aValue = objA[sortBy];
+                let bValue = objB[sortBy];
+                if (typeof aValue == "string") {
+                    aValue = aValue.toLowerCase();
+                    bValue = bValue.toLowerCase();
+                }
+                if (aValue < bValue)
+                    return -1
+                if (aValue > bValue)
+                    return 1
+                return 0
+                }
+            );
+        }
+
+        function sortTableByFieldDesc (array, sortBy) {
+            array.sort( (objA, objB) => {
+                let aValue = objA[sortBy];
+                let bValue = objB[sortBy];
+                if (typeof aValue == "string") {
+                    aValue = aValue.toLowerCase();
+                    bValue = bValue.toLowerCase();
+                }
+                if (aValue < bValue)
+                    return 1
+                if (aValue > bValue)
+                    return -1
+                return 0
+                }
+            );
+        }
+
+        function clearResult() {
+            let resultContainer = document.getElementById('resultContainer');
+            resultContainer.innerHTML = '';
+        }
+
+        function paginationInit() {
+            totalRecords = resultSobject.length;
+            startPage = 0;
+            endPage = pageSize - 1;
+            pageNumber = 1;
+            totalPages = Math.ceil(totalRecords / pageSize);
+            if (totalPages == 0) {
+                totalPages = 1;
+            }
+            let paginationlist = []
+            for (let i = 0; i < pageSize; i++) {
+                if (resultSobject.length > i) {
+                    paginationlist.push(resultSobject[i]);
+                }
+            }
+            buildResultTable(paginationlist);
+            paginationUpdate();
+        }
+
+        function paginationUpdate() {
+            let paginationInfo = document.getElementById('paginationInfo');
+            let paginationPrev = document.getElementById('paginationPrev');
+            let paginationNext = document.getElementById('paginationNext');
+            if (startPage == 0) {
+                paginationPrev.disabled = true;
+            } else {
+                paginationPrev.disabled = false;
+            }
+
+            if (endPage >= totalRecords - 1) {
+                paginationNext.disabled = true;
+            } else {
+                paginationNext.disabled = false;
+            }
+
+            paginationInfo.innerText =
+                `Page ${pageNumber} of ${totalPages}`;
+        }
+
+        function next() {
+            let paginationlist = [];
+            let counter = 0;
+            pageNumber++;
+            for (let i = endPage + 1; i < endPage + pageSize + 1; i++) {
+                if (resultSobject.length > i) {
+                    paginationlist.push(resultSobject[i]);
+                }
+                counter++;
+            }
+            startPage = startPage + counter;
+            endPage = endPage + counter;
+            buildResultTable(paginationlist);
+            paginationUpdate();
+        }
+
+        function previous() {
+            let paginationlist = [];
+            let counter = 0;
+            pageNumber--;
+            for (let i = startPage - pageSize; i < startPage; i++) {
+                if (i > -1) {
+                    paginationlist.push(resultSobject[i]);
+                    counter++;
+                } else {
+                    startPage++;
+                }
+            }
+            startPage = startPage - counter;
+            endPage = endPage - counter;
+            buildResultTable(paginationlist);
+            paginationUpdate();
+        }
+
+        function buildResultTable(records) {
+            clearResult();
+            let resultContainer = document.getElementById('resultContainer');
+            let resultData = document.createElement('div');
+            let data = '';
+            resultData.style.width = '100%';
+            resultData.style.height = '100%';
+            data +=
+                `<table aria-multiselectable="true"
+                     class="slds-table slds-table_bordered slds-table_fixed-layout slds-table_resizable-cols"
+                     role="grid">
+                        <thead>
+                            <tr class="slds-line-height_reset">`;
+
+            for (let field of selectedFieldsForDataTable) {
+                data +=
+                    `<th aria-label="Account Name" aria-sort="none" class="slds-is-resizable slds-is-sortable" scope="col">
+                            <a class="slds-th__action slds-text-link_reset"
+                               onclick="sortTableBy('${field}');"
+                               role="button"
+                            >
+                                <div class="slds-grid slds-grid_vertical-align-center slds-has-flexi-truncate">
+
+                                    <span class="slds-truncate" title="${field}">${field}</span>
+                                    <span class="slds-icon_container">
+                                          &nbsp;
+                                    </span>
+                                </div>
+                            </a>
+                        </th>`;
+            }
+            data +=
+                `        </tr>
+                    </thead>
+                 <tbody>`;
+
+            for (let record of records) {
+                data += `<tr aria-selected="false" class="slds-hint-parent">`;
+                for (let field of selectedFieldsForDataTable) {
+                    data +=
+                        `<td role="gridcell">
+                            <div class="slds-truncate" title="${field}">${record[field] !== undefined ? record[field] : ''}</div>
+                        </td>`;
+                }
+                data += `</tr>`;
+            }
+            data +=
+                `  </tbody>
+                </table>`;
+            resultData.innerHTML = data;
+            resultContainer.appendChild(resultData);
+        }
+
+    </script>
+
+    <style type="text/css">
+        .builderHide {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.2s ease-out;
+        }
+
+        .builderShow {
+            max-height: 100%;
+            transition: max-height 0.2s ease-out;
+        }
+
+        .showHideBtn {
+            background: rgb(3, 45, 96);
+            width: 100%;
+            border: none;
+        }
+
+        .showHideBtn:hover {
+            background-color: rgb(10, 60, 96);
+        }
+
+    </style>
+
+
+
+</apex:page>
